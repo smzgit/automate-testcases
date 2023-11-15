@@ -1,0 +1,41 @@
+name: TestCase Execution
+on:
+  push:
+jobs:
+  run-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04]
+        python-versions:
+          - "3.8"
+    name: Testing on
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python ${{ matrix.python-versions }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-versions }}
+
+      - name: Check for Cached Python venv
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ./.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements.txt') }}-${{ hashFiles('**/test_fw_requirements.txt') }}
+
+      - name: Build Python venv
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: python -m venv ./.venv && . ./.venv/bin/activate &&  pip install -r requirements.txt && pip install -r test_fw_requirements.txt
+
+      - name: Execute Test-cases
+        uses: pavelzw/pytest-action@v2
+        with:
+          emoji: false
+          verbose: false
+          job-summary: true
+          custom-pytest: . ./.venv/bin/activate &&  pytest tests/
